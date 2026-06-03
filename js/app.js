@@ -106,7 +106,15 @@ const videoEl = document.getElementById('camera-video');
 
 async function lancerCamera() {
   afficher('camera');
-  await demarrerCamera(videoEl);
+  try {
+    await demarrerCamera(videoEl);
+  } catch (err) {
+    afficher('library');
+    const msg = err.name === 'NotAllowedError'
+      ? 'Accès caméra refusé. Autorisez dans Réglages > Safari.'
+      : 'Impossible d\'accéder à la caméra : ' + err.message;
+    afficherToast(msg, 5000);
+  }
 }
 
 document.getElementById('btn-capture').addEventListener('click', () => {
@@ -266,6 +274,23 @@ document.getElementById('btn-supprimer').addEventListener('click', async () => {
 });
 
 // =====================================================================
+//  Toast
+// =====================================================================
+function afficherToast(msg, duree = 2500) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#1c1c1c;color:#fff;padding:.75rem 1.25rem;border-radius:99px;font-size:.875rem;font-weight:600;z-index:999;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5)';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, duree);
+}
+
+// =====================================================================
 //  Navigation principale
 // =====================================================================
 document.getElementById('btn-scan').addEventListener('click', lancerCamera);
@@ -300,7 +325,7 @@ document.getElementById('tri-select').addEventListener('change', e => {
 //  PWA — Service Worker
 // =====================================================================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 // =====================================================================
