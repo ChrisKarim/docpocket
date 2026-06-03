@@ -1,0 +1,220 @@
+/* =====================================================================
+   DocPocket — Dark mode, mobile-first
+   ===================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0f0f0f;
+  --surface:    #1a1a1a;
+  --surface2:   #242424;
+  --accent:     #6366f1;
+  --accent-dim: #4f46e5;
+  --text:       #f4f4f5;
+  --muted:      #71717a;
+  --danger:     #ef4444;
+  --radius:     12px;
+  --safe-bot:   env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.screen { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: .4rem; border: none; border-radius: 10px;
+  padding: .75rem 1.25rem; font-size: .95rem; font-weight: 600;
+  cursor: pointer; transition: opacity .15s; -webkit-appearance: none;
+}
+.btn:active { opacity: .75; }
+.btn-primary   { background: var(--accent);  color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); }
+.btn-danger    { background: var(--danger);  color: #fff; }
+.btn-ghost     { background: transparent; color: var(--muted); }
+.btn-full      { width: 100%; }
+.btn-icon      { width: 44px; height: 44px; border-radius: 50%; padding: 0; font-size: 1.2rem; }
+
+/* ---- HEADER ---- */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem;
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  background: var(--surface);
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+.app-header h1 { font-size: 1.2rem; font-weight: 700; }
+
+/* =====================================================================
+   BIBLIOTHÈQUE
+   ===================================================================== */
+#screen-library { background: var(--bg); }
+
+.library-top {
+  padding: .75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid #2a2a2a;
+  display: flex; gap: .5rem; flex-shrink: 0;
+}
+.search-input {
+  flex: 1; background: var(--surface2); border: none; border-radius: 8px;
+  padding: .6rem 1rem; color: var(--text); font-size: .9rem; outline: none;
+}
+.search-input::placeholder { color: var(--muted); }
+.tri-select {
+  background: var(--surface2); border: none; border-radius: 8px;
+  color: var(--text); font-size: .85rem; padding: .6rem .75rem; outline: none;
+}
+
+.filtre-scroll {
+  display: flex; gap: .5rem; overflow-x: auto; padding: .75rem 1rem;
+  flex-shrink: 0; scrollbar-width: none;
+}
+.filtre-scroll::-webkit-scrollbar { display: none; }
+.filtre-btn {
+  background: var(--surface2); border: none; border-radius: 99px;
+  color: var(--muted); font-size: .8rem; font-weight: 600;
+  padding: .4rem .9rem; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.filtre-btn.active { background: var(--accent); color: #fff; }
+
+.doc-liste { flex: 1; overflow-y: auto; padding: .75rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
+
+.doc-card {
+  background: var(--surface); border-radius: var(--radius);
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem; cursor: pointer;
+}
+.doc-card:active { opacity: .8; }
+.doc-thumb {
+  width: 56px; height: 72px; border-radius: 6px; flex-shrink: 0;
+  background: var(--surface2) center/cover no-repeat;
+}
+.doc-info { flex: 1; min-width: 0; }
+.doc-nom { font-weight: 600; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { display: flex; gap: .5rem; align-items: center; margin-top: .3rem; flex-wrap: wrap; }
+.cat-badge { font-size: .75rem; background: var(--surface2); padding: .2rem .5rem; border-radius: 99px; }
+.doc-date, .pages-badge { font-size: .75rem; color: var(--muted); }
+.doc-arrow { background: none; border: none; color: var(--muted); font-size: 1.4rem; flex-shrink: 0; }
+
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; padding: 2rem; text-align: center; }
+.empty-icon { font-size: 3rem; }
+.muted { color: var(--muted); font-size: .9rem; }
+
+.fab {
+  position: fixed; bottom: calc(1.5rem + var(--safe-bot)); right: 1.5rem;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 1.8rem; font-weight: 300; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(99,102,241,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+}
+.fab:active { transform: scale(.94); }
+
+/* =====================================================================
+   CAMÉRA
+   ===================================================================== */
+#screen-camera { background: #000; position: relative; }
+
+#camera-video {
+  width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+}
+
+.camera-ui {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 2rem 1.5rem calc(2rem + var(--safe-bot));
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(transparent, rgba(0,0,0,.7));
+}
+
+.capture-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 4px solid #fff; background: rgba(255,255,255,.2);
+  cursor: pointer; position: relative;
+}
+.capture-btn::after {
+  content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff;
+}
+.capture-btn:active::after { background: #ddd; }
+
+.camera-hint {
+  position: absolute; top: 1.5rem; left: 0; right: 0;
+  text-align: center; color: rgba(255,255,255,.8); font-size: .85rem;
+}
+
+/* =====================================================================
+   RECADRAGE
+   ===================================================================== */
+#screen-crop { background: #000; position: relative; }
+
+#crop-canvas { width: 100%; flex: 1; display: block; }
+
+.crop-toolbar {
+  padding: 1rem 1.5rem calc(1rem + var(--safe-bot));
+  display: flex; gap: .75rem; background: rgba(0,0,0,.8);
+  flex-shrink: 0;
+}
+
+#crop-actions {
+  position: absolute; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem; padding: 2rem;
+}
+#crop-actions .msg { color: #fff; font-weight: 600; font-size: 1rem; text-align: center; margin-bottom: .5rem; }
+
+/* =====================================================================
+   SAUVEGARDE
+   ===================================================================== */
+#screen-save { background: var(--bg); }
+
+.save-content { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+.save-thumbs { display: flex; gap: .75rem; overflow-x: auto; scrollbar-width: none; }
+.save-thumbs::-webkit-scrollbar { display: none; }
+.save-thumb { height: 120px; width: auto; border-radius: 8px; flex-shrink: 0; }
+
+.field-label { font-size: .8rem; color: var(--muted); font-weight: 600; margin-bottom: .4rem; }
+.text-input {
+  width: 100%; background: var(--surface2); border: none; border-radius: 10px;
+  padding: .85rem 1rem; color: var(--text); font-size: 1rem; outline: none;
+}
+.text-input:focus { outline: 2px solid var(--accent); }
+
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+.cat-btn {
+  background: var(--surface2); border: 2px solid transparent;
+  border-radius: 10px; color: var(--text); font-size: .8rem; font-weight: 600;
+  padding: .6rem .4rem; cursor: pointer; text-align: center;
+}
+.cat-btn.active { border-color: var(--accent); background: rgba(99,102,241,.15); color: var(--accent); }
+
+.save-footer { padding: 1rem 1.25rem calc(1rem + var(--safe-bot)); flex-shrink: 0; }
+
+/* =====================================================================
+   VISIONNEUSE
+   ===================================================================== */
+#screen-viewer { background: var(--bg); }
+
+.viewer-meta { padding: .25rem 1.25rem .75rem; color: var(--muted); font-size: .85rem; }
+
+#viewer-slider {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: .5rem; padding: 0 1rem .5rem;
+}
+.slide img { width: 100%; border-radius: 8px; display: block; }
+
+.viewer-actions {
+  display: flex; gap: .5rem; padding: 1rem 1.25rem calc(1rem + var(--safe-bot));
+  border-top: 1px solid #2a2a2a; flex-shrink: 0;
+}
+.viewer-actions .btn { flex: 1; font-size: .85rem; }

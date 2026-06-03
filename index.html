@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>DocPocket</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DocPocket" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- =====================================================================
+       BIBLIOTHÈQUE
+       ===================================================================== -->
+  <div id="screen-library" class="screen">
+    <header class="app-header">
+      <h1>📄 DocPocket</h1>
+    </header>
+
+    <div class="library-top">
+      <input type="search" id="search-input" class="search-input" placeholder="Rechercher…" />
+      <select id="tri-select" class="tri-select">
+        <option value="date-desc">Plus récents</option>
+        <option value="date-asc">Plus anciens</option>
+        <option value="nom-asc">Nom A→Z</option>
+        <option value="nom-desc">Nom Z→A</option>
+      </select>
+    </div>
+
+    <div id="filtre-categories" class="filtre-scroll"></div>
+
+    <div id="doc-liste" class="doc-liste"></div>
+
+    <button class="fab" id="btn-scan" title="Numériser">＋</button>
+  </div>
+
+  <!-- =====================================================================
+       CAMÉRA
+       ===================================================================== -->
+  <div id="screen-camera" class="screen" hidden>
+    <div class="camera-hint">Cadrez le document dans la zone</div>
+    <video id="camera-video" playsinline autoplay muted></video>
+    <div class="camera-ui">
+      <button class="btn btn-ghost" id="btn-camera-back">✕ Annuler</button>
+      <button class="capture-btn" id="btn-capture"></button>
+      <div style="width:80px"></div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       RECADRAGE
+       ===================================================================== -->
+  <div id="screen-crop" class="screen" hidden>
+    <canvas id="crop-canvas"></canvas>
+
+    <div class="crop-toolbar">
+      <button class="btn btn-secondary" id="btn-crop-back">← Reprendre</button>
+      <button class="btn btn-primary btn-full" id="btn-crop-confirm">✓ Confirmer</button>
+    </div>
+
+    <div id="crop-actions" hidden>
+      <div class="msg">Page ajoutée.<br/>Que souhaitez-vous faire ?</div>
+      <button class="btn btn-secondary btn-full" id="btn-add-page">📷 Ajouter une page (verso…)</button>
+      <button class="btn btn-primary btn-full" id="btn-save-now">💾 Enregistrer le document</button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SAUVEGARDE
+       ===================================================================== -->
+  <div id="screen-save" class="screen" hidden>
+    <header class="app-header">
+      <button class="btn btn-ghost" id="btn-save-back">✕</button>
+      <h1>Enregistrer</h1>
+      <div style="width:44px"></div>
+    </header>
+
+    <div class="save-content">
+      <div id="save-thumbs" class="save-thumbs"></div>
+
+      <div>
+        <div class="field-label">NOM DU DOCUMENT</div>
+        <input type="text" id="save-nom" class="text-input" placeholder="ex : Carte d'identité" />
+      </div>
+
+      <div>
+        <div class="field-label">CATÉGORIE</div>
+        <div id="save-categories" class="cat-grid"></div>
+      </div>
+    </div>
+
+    <div class="save-footer">
+      <button class="btn btn-primary btn-full" id="btn-sauvegarder">💾 Enregistrer</button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VISIONNEUSE
+       ===================================================================== -->
+  <div id="screen-viewer" class="screen" hidden>
+    <header class="app-header">
+      <button class="btn btn-ghost btn-icon" id="btn-viewer-back">←</button>
+      <h1 id="viewer-titre"></h1>
+      <div style="width:44px"></div>
+    </header>
+    <div id="viewer-meta" class="viewer-meta"></div>
+
+    <div id="viewer-slider"></div>
+
+    <div class="viewer-actions">
+      <button class="btn btn-secondary" id="btn-partager-img">🖼 Image</button>
+      <button class="btn btn-primary"   id="btn-partager-pdf">📄 PDF</button>
+      <button class="btn btn-danger"    id="btn-supprimer">🗑</button>
+    </div>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

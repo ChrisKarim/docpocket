@@ -1,0 +1,309 @@
+import { sauvegarder, listerTous, obtenir, supprimer } from './db.js';
+import { demarrerCamera, arreterCamera, capturer }     from './camera.js';
+import { SelecteurCoins, appliquerPerspective, dimensionsSortie } from './crop.js';
+import { genererPDF, partager } from './pdf.js';
+
+// =====================================================================
+//  Constantes
+// =====================================================================
+const CATEGORIES = [
+  { id: 'identite',      label: 'Identité',     icon: '🪪' },
+  { id: 'sante',         label: 'Santé',        icon: '🏥' },
+  { id: 'pro',           label: 'Pro',          icon: '💼' },
+  { id: 'abonnements',   label: 'Abonnements',  icon: '📋' },
+  { id: 'divers',        label: 'Divers',       icon: '📁' }
+];
+
+// =====================================================================
+//  État global
+// =====================================================================
+const state = {
+  screen:       'library',
+  pages:        [],        // dataURLs des pages capturées
+  pageEnCours:  null,      // dataURL de la capture courante (avant recadrage)
+  selecteur:    null,
+  filtreCateg:  null,
+  recherche:    '',
+  tri:          'date-desc',
+  docOuvert:    null
+};
+
+// =====================================================================
+//  Routeur
+// =====================================================================
+function afficher(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.hidden = true);
+  document.getElementById('screen-' + screen).hidden = false;
+  state.screen = screen;
+}
+
+// =====================================================================
+//  ÉCRAN : BIBLIOTHÈQUE
+// =====================================================================
+async function chargerBibliotheque() {
+  afficher('library');
+  const tous = await listerTous();
+  let docs = [...tous];
+
+  // Filtre catégorie
+  if (state.filtreCateg) docs = docs.filter(d => d.categorie === state.filtreCateg);
+
+  // Recherche
+  if (state.recherche) {
+    const q = state.recherche.toLowerCase();
+    docs = docs.filter(d => d.nom.toLowerCase().includes(q));
+  }
+
+  // Tri
+  docs.sort((a, b) => {
+    if (state.tri === 'date-desc') return b.createdAt - a.createdAt;
+    if (state.tri === 'date-asc')  return a.createdAt - b.createdAt;
+    if (state.tri === 'nom-asc')   return a.nom.localeCompare(b.nom);
+    if (state.tri === 'nom-desc')  return b.nom.localeCompare(a.nom);
+    return 0;
+  });
+
+  const liste = document.getElementById('doc-liste');
+  if (docs.length === 0) {
+    liste.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📄</div>
+        <p>Aucun document</p>
+        <p class="muted">Appuyez sur <strong>Numériser</strong> pour commencer</p>
+      </div>`;
+    return;
+  }
+
+  const cat = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+  liste.innerHTML = docs.map(d => {
+    const c = cat[d.categorie] || cat.divers;
+    const date = new Date(d.createdAt).toLocaleDateString('fr-FR');
+    const thumb = d.pages[0];
+    return `
+      <div class="doc-card" data-id="${d.id}">
+        <div class="doc-thumb" style="background-image:url('${thumb}')"></div>
+        <div class="doc-info">
+          <div class="doc-nom">${d.nom}</div>
+          <div class="doc-meta">
+            <span class="cat-badge">${c.icon} ${c.label}</span>
+            <span class="doc-date">${date}</span>
+            ${d.pages.length > 1 ? `<span class="pages-badge">${d.pages.length} pages</span>` : ''}
+          </div>
+        </div>
+        <button class="doc-arrow">›</button>
+      </div>`;
+  }).join('');
+
+  liste.querySelectorAll('.doc-card').forEach(el => {
+    el.addEventListener('click', () => ouvrirDocument(Number(el.dataset.id)));
+  });
+}
+
+// =====================================================================
+//  ÉCRAN : CAMÉRA
+// =====================================================================
+const videoEl = document.getElementById('camera-video');
+
+async function lancerCamera() {
+  afficher('camera');
+  await demarrerCamera(videoEl);
+}
+
+document.getElementById('btn-capture').addEventListener('click', () => {
+  const frame = capturer(videoEl);
+  state.pageEnCours = frame.dataURL;
+  arreterCamera();
+  lancerRecadrage(frame.dataURL);
+});
+
+document.getElementById('btn-camera-back').addEventListener('click', () => {
+  arreterCamera();
+  state.pages = [];
+  chargerBibliotheque();
+});
+
+// =====================================================================
+//  ÉCRAN : RECADRAGE
+// =====================================================================
+const cropCanvas = document.getElementById('crop-canvas');
+
+function lancerRecadrage(dataURL) {
+  afficher('crop');
+  const img = new Image();
+  img.onload = () => {
+    cropCanvas.width  = cropCanvas.clientWidth  || window.innerWidth;
+    cropCanvas.height = cropCanvas.clientHeight || window.innerHeight - 160;
+    state.selecteur = new SelecteurCoins(cropCanvas, img, () => {});
+  };
+  img.src = dataURL;
+}
+
+document.getElementById('btn-crop-confirm').addEventListener('click', () => {
+  const coins = state.selecteur.getCoins();
+  const img   = new Image();
+  img.onload = () => {
+    const { largeur, hauteur } = dimensionsSortie(coins);
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width  = img.width;
+    srcCanvas.height = img.height;
+    srcCanvas.getContext('2d').drawImage(img, 0, 0);
+    const corrige = appliquerPerspective(srcCanvas, coins, largeur, hauteur);
+    state.pages.push(corrige.toDataURL('image/jpeg', 0.9));
+    afficherApresCrop();
+  };
+  img.src = state.pageEnCours;
+});
+
+document.getElementById('btn-crop-back').addEventListener('click', () => {
+  lancerCamera();
+});
+
+function afficherApresCrop() {
+  // Proposer : ajouter une autre page ou passer à la sauvegarde
+  const overlay = document.getElementById('crop-actions');
+  overlay.hidden = false;
+}
+
+document.getElementById('btn-add-page').addEventListener('click', () => {
+  document.getElementById('crop-actions').hidden = true;
+  lancerCamera();
+});
+
+document.getElementById('btn-save-now').addEventListener('click', () => {
+  document.getElementById('crop-actions').hidden = true;
+  afficher('save');
+  afficherApercuPages();
+});
+
+// =====================================================================
+//  ÉCRAN : SAUVEGARDE
+// =====================================================================
+function afficherApercuPages() {
+  const zone = document.getElementById('save-thumbs');
+  zone.innerHTML = state.pages.map((p, i) =>
+    `<img src="${p}" class="save-thumb" alt="page ${i+1}" />`
+  ).join('');
+
+  // Boutons catégories
+  const cats = document.getElementById('save-categories');
+  cats.innerHTML = CATEGORIES.map(c => `
+    <button class="cat-btn" data-id="${c.id}">${c.icon} ${c.label}</button>
+  `).join('');
+  cats.querySelector('[data-id="divers"]').classList.add('active');
+
+  cats.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cats.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+document.getElementById('btn-sauvegarder').addEventListener('click', async () => {
+  const nom = document.getElementById('save-nom').value.trim();
+  if (!nom) { document.getElementById('save-nom').focus(); return; }
+
+  const categActive = document.querySelector('.cat-btn.active');
+  const categorie   = categActive ? categActive.dataset.id : 'divers';
+
+  await sauvegarder({ nom, categorie, pages: state.pages });
+  state.pages = [];
+  document.getElementById('save-nom').value = '';
+  chargerBibliotheque();
+});
+
+document.getElementById('btn-save-back').addEventListener('click', () => {
+  state.pages = [];
+  chargerBibliotheque();
+});
+
+// =====================================================================
+//  ÉCRAN : VISIONNEUSE
+// =====================================================================
+async function ouvrirDocument(id) {
+  const doc = await obtenir(id);
+  if (!doc) return;
+  state.docOuvert = doc;
+
+  const cat = CATEGORIES.find(c => c.id === doc.categorie) || CATEGORIES[4];
+  const date = new Date(doc.createdAt).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  document.getElementById('viewer-titre').textContent = doc.nom;
+  document.getElementById('viewer-meta').textContent  = `${cat.icon} ${cat.label} · ${date}`;
+
+  const slider = document.getElementById('viewer-slider');
+  slider.innerHTML = doc.pages.map((p, i) =>
+    `<div class="slide"><img src="${p}" alt="page ${i+1}" /></div>`
+  ).join('');
+
+  afficher('viewer');
+}
+
+document.getElementById('btn-viewer-back').addEventListener('click', chargerBibliotheque);
+
+document.getElementById('btn-partager-pdf').addEventListener('click', async () => {
+  const doc  = state.docOuvert;
+  const blob = await genererPDF(doc.pages, doc.nom);
+  await partager(blob, `${doc.nom}.pdf`);
+});
+
+document.getElementById('btn-partager-img').addEventListener('click', async () => {
+  const doc = state.docOuvert;
+  // Partager toutes les pages ou juste la première
+  const dataURL = doc.pages[0];
+  const res  = await fetch(dataURL);
+  const blob = await res.blob();
+  await partager(blob, `${doc.nom}.jpg`);
+});
+
+document.getElementById('btn-supprimer').addEventListener('click', async () => {
+  if (!confirm(`Supprimer « ${state.docOuvert.nom} » ?`)) return;
+  await supprimer(state.docOuvert.id);
+  state.docOuvert = null;
+  chargerBibliotheque();
+});
+
+// =====================================================================
+//  Navigation principale
+// =====================================================================
+document.getElementById('btn-scan').addEventListener('click', lancerCamera);
+
+// Filtres catégories (bibliothèque)
+const filtreCats = document.getElementById('filtre-categories');
+filtreCats.innerHTML = `<button class="filtre-btn active" data-id="">Tout</button>` +
+  CATEGORIES.map(c => `<button class="filtre-btn" data-id="${c.id}">${c.icon} ${c.label}</button>`).join('');
+
+filtreCats.querySelectorAll('.filtre-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filtreCats.querySelectorAll('.filtre-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.filtreCateg = btn.dataset.id || null;
+    chargerBibliotheque();
+  });
+});
+
+// Recherche
+document.getElementById('search-input').addEventListener('input', e => {
+  state.recherche = e.target.value;
+  chargerBibliotheque();
+});
+
+// Tri
+document.getElementById('tri-select').addEventListener('change', e => {
+  state.tri = e.target.value;
+  chargerBibliotheque();
+});
+
+// =====================================================================
+//  PWA — Service Worker
+// =====================================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// =====================================================================
+//  Démarrage
+// =====================================================================
+chargerBibliotheque();
