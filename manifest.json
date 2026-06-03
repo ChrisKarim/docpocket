@@ -2,7 +2,7 @@
   "name": "DocPocket",
   "short_name": "DocPocket",
   "description": "Numérisez et gérez vos documents personnels",
-  "start_url": "/",
+  "start_url": "/docpocket/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f0f0f",
