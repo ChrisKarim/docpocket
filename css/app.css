@@ -26,7 +26,7 @@ html, body {
   overscroll-behavior: none;
 }
 
-.screen { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ---- BUTTONS ---- */
 .btn {
@@ -124,7 +124,7 @@ html, body {
 /* =====================================================================
    CAMÉRA
    ===================================================================== */
-#screen-camera { background: #000; position: relative; }
+#screen-camera { background: #000; }
 
 #camera-video {
   width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
@@ -155,9 +155,9 @@ html, body {
 /* =====================================================================
    RECADRAGE
    ===================================================================== */
-#screen-crop { background: #000; position: relative; }
+#screen-crop { background: #000; }
 
-#crop-canvas { width: 100%; flex: 1; display: block; }
+#crop-canvas { width: 100%; flex: 1; display: block; touch-action: none; }
 
 .crop-toolbar {
   padding: 1rem 1.5rem calc(1rem + var(--safe-bot));
@@ -179,9 +179,15 @@ html, body {
 
 .save-content { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
-.save-thumbs { display: flex; gap: .75rem; overflow-x: auto; scrollbar-width: none; }
+.save-thumbs { display: flex; gap: .75rem; overflow-x: auto; scrollbar-width: none; align-items: center; }
 .save-thumbs::-webkit-scrollbar { display: none; }
 .save-thumb { height: 120px; width: auto; border-radius: 8px; flex-shrink: 0; }
+.add-page-btn {
+  width: 72px; height: 120px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface2); border: 2px dashed var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; color: var(--muted); cursor: pointer;
+}
 
 .field-label { font-size: .8rem; color: var(--muted); font-weight: 600; margin-bottom: .4rem; }
 .text-input {

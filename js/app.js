@@ -64,6 +64,15 @@ async function chargerBibliotheque() {
   });
 
   const liste = document.getElementById('doc-liste');
+  if (!liste._delegated) {
+    liste._delegated = true;
+    liste.addEventListener('click', e => {
+      const card = e.target.closest('.doc-card');
+      if (!card) return;
+      const id = Number(card.dataset.id);
+      if (!isNaN(id)) ouvrirDocument(id).catch(err => afficherToast('Erreur : ' + err.message));
+    });
+  }
   if (docs.length === 0) {
     liste.innerHTML = `
       <div class="empty-state">
@@ -75,13 +84,14 @@ async function chargerBibliotheque() {
   }
 
   const cat = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+
+  // Créer les cartes sans mettre le data-URL dans le HTML (évite les bugs de parsing)
   liste.innerHTML = docs.map(d => {
     const c = cat[d.categorie] || cat.divers;
     const date = new Date(d.createdAt).toLocaleDateString('fr-FR');
-    const thumb = d.pages[0];
     return `
       <div class="doc-card" data-id="${d.id}">
-        <div class="doc-thumb" style="background-image:url('${thumb}')"></div>
+        <div class="doc-thumb" data-id="${d.id}"></div>
         <div class="doc-info">
           <div class="doc-nom">${d.nom}</div>
           <div class="doc-meta">
@@ -90,13 +100,16 @@ async function chargerBibliotheque() {
             ${d.pages.length > 1 ? `<span class="pages-badge">${d.pages.length} pages</span>` : ''}
           </div>
         </div>
-        <button class="doc-arrow">›</button>
+        <span class="doc-arrow">›</span>
       </div>`;
   }).join('');
 
-  liste.querySelectorAll('.doc-card').forEach(el => {
-    el.addEventListener('click', () => ouvrirDocument(Number(el.dataset.id)));
+  // Injecter les miniatures en JS (pas dans le HTML)
+  docs.forEach(d => {
+    const thumb = liste.querySelector(`.doc-thumb[data-id="${d.id}"]`);
+    if (thumb && d.pages[0]) thumb.style.backgroundImage = `url('${d.pages[0]}')`;
   });
+
 }
 
 // =====================================================================
@@ -139,14 +152,21 @@ function lancerRecadrage(dataURL) {
   afficher('crop');
   const img = new Image();
   img.onload = () => {
-    cropCanvas.width  = cropCanvas.clientWidth  || window.innerWidth;
-    cropCanvas.height = cropCanvas.clientHeight || window.innerHeight - 160;
-    state.selecteur = new SelecteurCoins(cropCanvas, img, () => {});
+    // Attendre le reflow iOS avant de mesurer le canvas
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const rect = cropCanvas.getBoundingClientRect();
+        cropCanvas.width  = Math.round(rect.width)  || window.innerWidth;
+        cropCanvas.height = Math.round(rect.height) || window.innerHeight - 120;
+        state.selecteur = new SelecteurCoins(cropCanvas, img, () => {});
+      });
+    });
   };
   img.src = dataURL;
 }
 
 document.getElementById('btn-crop-confirm').addEventListener('click', () => {
+  if (!state.selecteur) return;
   const coins = state.selecteur.getCoins();
   const img   = new Image();
   img.onload = () => {
@@ -157,30 +177,14 @@ document.getElementById('btn-crop-confirm').addEventListener('click', () => {
     srcCanvas.getContext('2d').drawImage(img, 0, 0);
     const corrige = appliquerPerspective(srcCanvas, coins, largeur, hauteur);
     state.pages.push(corrige.toDataURL('image/jpeg', 0.9));
-    afficherApresCrop();
+    afficher('save');
+    afficherApercuPages();
   };
   img.src = state.pageEnCours;
 });
 
 document.getElementById('btn-crop-back').addEventListener('click', () => {
   lancerCamera();
-});
-
-function afficherApresCrop() {
-  // Proposer : ajouter une autre page ou passer à la sauvegarde
-  const overlay = document.getElementById('crop-actions');
-  overlay.hidden = false;
-}
-
-document.getElementById('btn-add-page').addEventListener('click', () => {
-  document.getElementById('crop-actions').hidden = true;
-  lancerCamera();
-});
-
-document.getElementById('btn-save-now').addEventListener('click', () => {
-  document.getElementById('crop-actions').hidden = true;
-  afficher('save');
-  afficherApercuPages();
 });
 
 // =====================================================================
@@ -190,7 +194,7 @@ function afficherApercuPages() {
   const zone = document.getElementById('save-thumbs');
   zone.innerHTML = state.pages.map((p, i) =>
     `<img src="${p}" class="save-thumb" alt="page ${i+1}" />`
-  ).join('');
+  ).join('') + `<div class="add-page-btn" id="btn-add-page-save">＋</div>`;
 
   // Boutons catégories
   const cats = document.getElementById('save-categories');
@@ -205,6 +209,9 @@ function afficherApercuPages() {
       btn.classList.add('active');
     });
   });
+
+  // Bouton "ajouter une page"
+  document.getElementById('btn-add-page-save')?.addEventListener('click', lancerCamera);
 }
 
 document.getElementById('btn-sauvegarder').addEventListener('click', async () => {
