@@ -26,6 +26,8 @@ html, body {
   overscroll-behavior: none;
 }
 
+[hidden] { display: none !important; }
+
 .screen { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ---- BUTTONS ---- */
