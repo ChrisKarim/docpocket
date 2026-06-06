@@ -137,11 +137,15 @@ async function lancerCamera() {
   }
 }
 
-document.getElementById('btn-capture').addEventListener('click', async () => {
-  const frame = await capturer(videoEl);
-  state.pageEnCours = frame.dataURL;
-  arreterCamera();
-  lancerRecadrage(frame.dataURL);
+document.getElementById('btn-capture').addEventListener('click', () => {
+  try {
+    const frame = capturer(videoEl);
+    state.pageEnCours = frame.dataURL;
+    arreterCamera();
+    lancerRecadrage(frame.dataURL);
+  } catch (err) {
+    afficherToast('Erreur de capture : ' + err.message, 5000);
+  }
 });
 
 document.getElementById('btn-camera-back').addEventListener('click', () => {
