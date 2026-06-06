@@ -26,12 +26,23 @@ function tx(mode = 'readonly') {
   return _db.transaction(STORE, mode).objectStore(STORE);
 }
 
-// Sauvegarder un document
+// Sauvegarder un document (id toujours auto-généré, createdAt préservé si présent)
 export async function sauvegarder(doc) {
   await ouvrirDB();
+  const { id: _id, ...data } = doc;
   return new Promise((resolve, reject) => {
-    const req = tx('readwrite').add({ ...doc, createdAt: Date.now() });
+    const req = tx('readwrite').add({ ...data, createdAt: data.createdAt ?? Date.now() });
     req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+// Mettre à jour un document existant (ex: ajouter driveId après sync)
+export async function actualiser(doc) {
+  await ouvrirDB();
+  return new Promise((resolve, reject) => {
+    const req = tx('readwrite').put(doc);
+    req.onsuccess = () => resolve();
     req.onerror   = e => reject(e.target.error);
   });
 }

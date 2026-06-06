@@ -1,4 +1,5 @@
-import { sauvegarder, listerTous, obtenir, supprimer } from './db.js';
+import { sauvegarder, listerTous, obtenir, supprimer, actualiser } from './db.js';
+import { initialiser as initDrive, estConnecte, connecter, deconnecter, uploaderDocument, supprimerDeDrive, synchroniser as syncDrive } from './gdrive.js';
 import { demarrerCamera, arreterCamera, capturer }     from './camera.js';
 import { SelecteurCoins, appliquerPerspective, dimensionsSortie } from './crop.js';
 import { genererPDF, partager } from './pdf.js';
@@ -42,7 +43,13 @@ function afficher(screen) {
 // =====================================================================
 async function chargerBibliotheque() {
   afficher('library');
-  const tous = await listerTous();
+  let tous;
+  try {
+    tous = await listerTous();
+  } catch (err) {
+    afficherToast('Impossible de charger les documents : ' + err.message, 5000);
+    tous = [];
+  }
   let docs = [...tous];
 
   // Filtre catégorie
@@ -130,8 +137,8 @@ async function lancerCamera() {
   }
 }
 
-document.getElementById('btn-capture').addEventListener('click', () => {
-  const frame = capturer(videoEl);
+document.getElementById('btn-capture').addEventListener('click', async () => {
+  const frame = await capturer(videoEl);
   state.pageEnCours = frame.dataURL;
   arreterCamera();
   lancerRecadrage(frame.dataURL);
@@ -221,10 +228,22 @@ document.getElementById('btn-sauvegarder').addEventListener('click', async () =>
   const categActive = document.querySelector('.cat-btn.active');
   const categorie   = categActive ? categActive.dataset.id : 'divers';
 
-  await sauvegarder({ nom, categorie, pages: state.pages });
-  state.pages = [];
-  document.getElementById('save-nom').value = '';
-  chargerBibliotheque();
+  try {
+    const localId = await sauvegarder({ nom, categorie, pages: state.pages });
+    state.pages = [];
+    document.getElementById('save-nom').value = '';
+
+    if (estConnecte()) {
+      obtenir(localId)
+        .then(doc => uploaderDocument(doc))
+        .then(driveId => obtenir(localId).then(doc => actualiser({ ...doc, driveId })))
+        .catch(() => {});
+    }
+
+    chargerBibliotheque();
+  } catch (err) {
+    afficherToast('Erreur lors de la sauvegarde : ' + err.message, 6000);
+  }
 });
 
 document.getElementById('btn-save-back').addEventListener('click', () => {
@@ -275,7 +294,11 @@ document.getElementById('btn-partager-img').addEventListener('click', async () =
 
 document.getElementById('btn-supprimer').addEventListener('click', async () => {
   if (!confirm(`Supprimer « ${state.docOuvert.nom} » ?`)) return;
-  await supprimer(state.docOuvert.id);
+  const doc = state.docOuvert;
+  if (estConnecte() && doc.driveId) {
+    supprimerDeDrive(doc.driveId).catch(() => {});
+  }
+  await supprimer(doc.id);
   state.docOuvert = null;
   chargerBibliotheque();
 });
@@ -329,13 +352,89 @@ document.getElementById('tri-select').addEventListener('change', e => {
 });
 
 // =====================================================================
+//  GOOGLE DRIVE
+// =====================================================================
+function mettreAJourBoutonDrive(connecte) {
+  const btn = document.getElementById('btn-drive');
+  if (!btn) return;
+  if (connecte) {
+    btn.innerHTML = '☁️ <span class="drive-dot">●</span>';
+    btn.title = 'Connecté à Drive — cliquer pour déconnecter';
+    btn.classList.add('drive-on');
+  } else {
+    btn.innerHTML = '☁️';
+    btn.title = 'Synchroniser avec Google Drive';
+    btn.classList.remove('drive-on');
+  }
+}
+
+async function lancerSynchronisation() {
+  try {
+    const tous = await listerTous();
+    const driveIdsLocaux = tous.map(d => d.driveId).filter(Boolean);
+
+    const distants = await syncDrive(driveIdsLocaux);
+    for (const doc of distants) {
+      await sauvegarder(doc);
+    }
+
+    const tousMaj = await listerTous();
+    for (const doc of tousMaj) {
+      if (!doc.driveId) {
+        try {
+          const driveId = await uploaderDocument(doc);
+          await actualiser({ ...doc, driveId });
+        } catch {}
+      }
+    }
+
+    if (distants.length > 0) {
+      afficherToast(`${distants.length} document(s) importé(s) depuis Drive`);
+      chargerBibliotheque();
+    }
+  } catch (err) {
+    afficherToast('Erreur sync Drive : ' + err.message, 5000);
+  }
+}
+
+document.getElementById('btn-drive').addEventListener('click', async () => {
+  if (estConnecte()) {
+    deconnecter();
+    afficherToast('Déconnecté de Google Drive');
+  } else {
+    try {
+      afficherToast('Connexion à Google Drive…', 3000);
+      await connecter();
+      afficherToast('Connecté — synchronisation en cours…', 3000);
+      await lancerSynchronisation();
+    } catch (err) {
+      afficherToast('Connexion échouée : ' + err.message, 5000);
+    }
+  }
+});
+
+// =====================================================================
 //  PWA — Service Worker
 // =====================================================================
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+// Demander le stockage persistant pour éviter que le navigateur efface les données
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then(granted => {
+    if (!granted) {
+      afficherToast('⚠️ Stockage non garanti : vos documents pourraient être effacés par le système.', 6000);
+    }
+  });
+}
+
 // =====================================================================
 //  Démarrage
 // =====================================================================
+initDrive(connecte => {
+  mettreAJourBoutonDrive(connecte);
+  if (connecte) lancerSynchronisation().catch(() => {});
+});
+
 chargerBibliotheque();

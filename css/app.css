@@ -56,6 +56,16 @@ html, body {
 }
 .app-header h1 { font-size: 1.2rem; font-weight: 700; }
 
+.btn-drive {
+  background: var(--surface2); border: none; border-radius: 8px;
+  color: var(--muted); font-size: .85rem; font-weight: 600;
+  padding: .4rem .65rem; cursor: pointer; display: flex;
+  align-items: center; gap: .25rem; transition: opacity .15s;
+}
+.btn-drive:active { opacity: .7; }
+.btn-drive.drive-on { background: rgba(52,211,153,.12); color: #34d399; }
+.drive-dot { font-size: .55rem; line-height: 1; }
+
 /* =====================================================================
    BIBLIOTHÈQUE
    ===================================================================== */

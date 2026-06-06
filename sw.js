@@ -1,5 +1,5 @@
-const CACHE = 'docpocket-v2';
-const ASSETS = ['./', './index.html', './css/app.css', './js/db.js', './js/camera.js', './js/crop.js', './js/pdf.js', './js/app.js'];
+const CACHE = 'docpocket-v3';
+const ASSETS = ['./', './index.html', './css/app.css', './js/db.js', './js/camera.js', './js/crop.js', './js/pdf.js', './js/app.js', './js/gdrive.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
