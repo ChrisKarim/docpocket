@@ -1,6 +1,16 @@
 import { sauvegarder, listerTous, obtenir, supprimer, actualiser } from './db.js';
-import { initialiser as initDrive, estConnecte, connecter, deconnecter, uploaderDocument, supprimerDeDrive, synchroniser as syncDrive } from './gdrive.js';
 import { demarrerCamera, arreterCamera, capturer }     from './camera.js';
+
+// Proxy Drive : no-op par défaut, remplacé si gdrive.js charge correctement
+const drive = {
+  estConnecte:      () => false,
+  connecter:        async () => {},
+  deconnecter:      () => {},
+  uploaderDocument: async () => null,
+  supprimerDeDrive: async () => {},
+  synchroniser:     async () => [],
+  initialiser:      () => {},
+};
 import { SelecteurCoins, appliquerPerspective, dimensionsSortie } from './crop.js';
 import { genererPDF, partager } from './pdf.js';
 
@@ -237,9 +247,9 @@ document.getElementById('btn-sauvegarder').addEventListener('click', async () =>
     state.pages = [];
     document.getElementById('save-nom').value = '';
 
-    if (estConnecte()) {
+    if (drive.estConnecte()) {
       obtenir(localId)
-        .then(doc => uploaderDocument(doc))
+        .then(doc => drive.uploaderDocument(doc))
         .then(driveId => obtenir(localId).then(doc => actualiser({ ...doc, driveId })))
         .catch(() => {});
     }
@@ -299,8 +309,8 @@ document.getElementById('btn-partager-img').addEventListener('click', async () =
 document.getElementById('btn-supprimer').addEventListener('click', async () => {
   if (!confirm(`Supprimer « ${state.docOuvert.nom} » ?`)) return;
   const doc = state.docOuvert;
-  if (estConnecte() && doc.driveId) {
-    supprimerDeDrive(doc.driveId).catch(() => {});
+  if (drive.estConnecte() && doc.driveId) {
+    drive.supprimerDeDrive(doc.driveId).catch(() => {});
   }
   await supprimer(doc.id);
   state.docOuvert = null;
@@ -377,7 +387,7 @@ async function lancerSynchronisation() {
     const tous = await listerTous();
     const driveIdsLocaux = tous.map(d => d.driveId).filter(Boolean);
 
-    const distants = await syncDrive(driveIdsLocaux);
+    const distants = await drive.synchroniser(driveIdsLocaux);
     for (const doc of distants) {
       await sauvegarder(doc);
     }
@@ -386,7 +396,7 @@ async function lancerSynchronisation() {
     for (const doc of tousMaj) {
       if (!doc.driveId) {
         try {
-          const driveId = await uploaderDocument(doc);
+          const driveId = await drive.uploaderDocument(doc);
           await actualiser({ ...doc, driveId });
         } catch {}
       }
@@ -402,13 +412,13 @@ async function lancerSynchronisation() {
 }
 
 document.getElementById('btn-drive').addEventListener('click', async () => {
-  if (estConnecte()) {
-    deconnecter();
+  if (drive.estConnecte()) {
+    drive.deconnecter();
     afficherToast('Déconnecté de Google Drive');
   } else {
     try {
       afficherToast('Connexion à Google Drive…', 3000);
-      await connecter();
+      await drive.connecter();
       afficherToast('Connecté — synchronisation en cours…', 3000);
       await lancerSynchronisation();
     } catch (err) {
@@ -436,9 +446,14 @@ if (navigator.storage && navigator.storage.persist) {
 // =====================================================================
 //  Démarrage
 // =====================================================================
-initDrive(connecte => {
-  mettreAJourBoutonDrive(connecte);
-  if (connecte) lancerSynchronisation().catch(() => {});
-});
+// Chargement dynamique de Drive : si le module est absent (vieux cache SW),
+// l'app fonctionne normalement sans Drive
+import('./gdrive.js').then(m => {
+  Object.assign(drive, m);
+  m.initialiser(connecte => {
+    mettreAJourBoutonDrive(connecte);
+    if (connecte) lancerSynchronisation().catch(() => {});
+  });
+}).catch(() => {});
 
 chargerBibliotheque();
