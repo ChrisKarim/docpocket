@@ -138,9 +138,8 @@ html, body {
    ===================================================================== */
 #screen-camera { background: #000; }
 
-#camera-video {
-  width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
-  pointer-events: none; /* empêche la vidéo d'intercepter les touches sur iOS */
+#camera-canvas {
+  width: 100%; height: 100%; position: absolute; inset: 0;
 }
 
 .camera-ui {

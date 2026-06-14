@@ -1,4 +1,4 @@
-const CACHE = 'docpocket-v5';
+const CACHE = 'docpocket-v6';
 const ASSETS = ['./', './index.html', './css/app.css', './js/db.js', './js/camera.js', './js/crop.js', './js/pdf.js', './js/app.js', './js/gdrive.js'];
 
 self.addEventListener('install', e => {

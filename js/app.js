@@ -132,12 +132,12 @@ async function chargerBibliotheque() {
 // =====================================================================
 //  ÉCRAN : CAMÉRA
 // =====================================================================
-const videoEl = document.getElementById('camera-video');
+const cameraCanvas = document.getElementById('camera-canvas');
 
 async function lancerCamera() {
   afficher('camera');
   try {
-    await demarrerCamera(videoEl);
+    await demarrerCamera(cameraCanvas);
   } catch (err) {
     afficher('library');
     const msg = err.name === 'NotAllowedError'
@@ -149,7 +149,7 @@ async function lancerCamera() {
 
 function executerCapture() {
   try {
-    const frame = capturer(videoEl);
+    const frame = capturer();
     state.pageEnCours = frame.dataURL;
     arreterCamera();
     lancerRecadrage(frame.dataURL);
